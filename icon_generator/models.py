@@ -49,6 +49,43 @@ class SRGeneratorUpScaleBlock(chainer.Chain):
         return h
 
 
+class Iconizer(chainer.Chain):
+    def __init__(self):
+        super().__init__(
+            first=chainer.links.Convolution2D(3, 64, ksize=3, stride=1, pad=1, wscale=0.02 * math.sqrt(3 * 3 * 3)),
+            res1=SRGeneratorResBlock(),
+            res2=SRGeneratorResBlock(),
+            res3=SRGeneratorResBlock(),
+            res4=SRGeneratorResBlock(),
+            res5=SRGeneratorResBlock(),
+            conv_mid=chainer.links.Convolution2D(64, 64, ksize=3, stride=1, pad=1, wscale=0.02 * math.sqrt(64 * 3 * 3)),
+            bn_mid=chainer.links.BatchNormalization(64),
+
+            downscale1=chainer.links.Convolution2D(64, 64, ksize=3, stride=2, pad=1, wscale=0.02 * math.sqrt(64 * 3 * 3)),
+            downscale2=chainer.links.Convolution2D(64, 64, ksize=3, stride=2, pad=1, wscale=0.02 * math.sqrt(64 * 3 * 3)),
+
+            conv_output=chainer.links.Convolution2D(64, 3, ksize=3, stride=1, pad=1,
+                                                    wscale=0.02 * math.sqrt(64 * 3 * 3))
+        )
+
+    def __call__(self, x: chainer.Variable, test=False):
+        h = first = chainer.functions.relu(self.first(x))
+
+        h = self.res1(h, test=test)
+        h = self.res2(h, test=test)
+        h = self.res3(h, test=test)
+        h = self.res4(h, test=test)
+        h = self.res5(h, test=test)
+        mid = self.bn_mid(self.conv_mid(h), test=test)
+
+        h = first + mid
+
+        h = chainer.functions.relu(self.downscale2(chainer.functions.relu(self.downscale1(h))))
+
+        h = self.conv_output(h)
+        return h
+
+
 class SRGenerator(chainer.Chain):
     def __init__(self):
         super().__init__(
