@@ -13,8 +13,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--dataset", required=True)
 parser.add_argument("--outdirname", required=True)
 parser.add_argument("--gpu", type=int, default=-1)
-parser.add_argument("--pretrained_srmodel", required=True)
+parser.add_argument("--pretrained_srmodel")
 parser.add_argument("--batchsize", type=int, default=10)
+parser.add_argument("--train_sr", action="store_true")
 args = parser.parse_args()
 
 OUTPUT_DIRECTORY = args.outdirname
@@ -41,20 +42,26 @@ iterator = chainer.iterators.MultiprocessIterator(dataset, batch_size=args.batch
 # iterator = chainer.iterators.SerialIterator(dataset, batch_size=args.batchsize, repeat=True, shuffle=True)
 
 super_resolution_model = icon_generator.models.SRGenerator()
-chainer.serializers.load_npz(args.pretrained_srmodel, super_resolution_model)
+if args.pretrained_srmodel is not None:
+    chainer.serializers.load_npz(args.pretrained_srmodel, super_resolution_model)
+iconizer = icon_generator.models.Iconizer()
 if args.gpu >= 0:
+    iconizer.to_gpu()
     super_resolution_model.to_gpu()
 
-iconizer = icon_generator.models.Iconizer()
-optimizer = chainer.optimizers.Adam()
-optimizer.setup(iconizer)
+optimizer_iconizer = chainer.optimizers.Adam()
+optimizer_iconizer.setup(iconizer)
+optimizer_sr = None
+if args.train_sr:
+    optimizer_sr = chainer.optimizers.Adam()
+    optimizer_sr.setup(super_resolution_model)
 
 count_processed = 0
 sum_loss = 0
 for batch in iterator:
     data = chainer.Variable(xp.array(batch))
 
-    iconized = iconizer(batch)
+    iconized = iconizer(data)
     reconstructed = super_resolution_model(iconized)
 
     loss = chainer.functions.mean_squared_error(
@@ -62,10 +69,16 @@ for batch in iterator:
         reconstructed
     )
 
+    optimizer_iconizer.zero_grads()
+    if optimizer_sr is not None: optimizer_sr.zero_grads()
+    loss.backward()
+    optimizer_iconizer.update()
+    if optimizer_sr is not None: optimizer_sr.update()
+
     sum_loss += chainer.cuda.to_cpu(loss.data)
-    report_span = args.batchsize * 10
-    save_span = args.batchsize * 1000
-    count_processed += len(data)
+    report_span = args.batchsize * 100
+    save_span = args.batchsize * 10000
+    count_processed += data.shape[0]
     if count_processed % report_span == 0:
         logging.info("processed: {}".format(count_processed))
         logging.info("loss: {}".format(sum_loss / report_span))
