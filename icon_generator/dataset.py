@@ -50,10 +50,12 @@ class ResizedImageDataset(dataset_mixin.DatasetMixin):
 
 
 class PreprocessedImageDataset(dataset_mixin.DatasetMixin):
-    def __init__(self, paths, cropsize, resize=None, root='.', dtype=numpy.float32):
+    def __init__(self, paths, cropsize, scaling_ratio, resize=None, root='.', dtype=numpy.float32):
         self.base = ResizedImageDataset(paths=paths, resize=resize, root=root)
         self._dtype = dtype
         self.cropsize = cropsize
+        self.scaling_ratio = scaling_ratio
+
 
     def __len__(self):
         return len(self.base)
@@ -64,4 +66,10 @@ class PreprocessedImageDataset(dataset_mixin.DatasetMixin):
         y = random.randint(0, image.shape[2] - self.cropsize)
 
         cropeed_high_res = image[:, x:x + self.cropsize, y:y + self.cropsize]
-        return cropeed_high_res
+
+        cropped_low_res = cv2.resize(cropeed_high_res.transpose(1, 2, 0),
+                                     dsize=(
+                                         int(self.cropsize / self.scaling_ratio),
+                                         int(self.cropsize / self.scaling_ratio)),
+                                     interpolation=cv2.INTER_CUBIC).transpose(2, 0, 1)
+        return cropped_low_res, cropeed_high_res

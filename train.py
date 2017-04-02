@@ -16,6 +16,8 @@ parser.add_argument("--gpu", type=int, default=-1)
 parser.add_argument("--pretrained_srmodel")
 parser.add_argument("--batchsize", type=int, default=10)
 parser.add_argument("--train_sr", action="store_true")
+parser.add_argument('--scale', type=int, choices=[4, 8], default=4)
+parser.add_argument("--limited", action="store_true")
 args = parser.parse_args()
 
 OUTPUT_DIRECTORY = args.outdirname
@@ -36,15 +38,18 @@ else:
 
 # paths = glob.glob("{}/*.JPEG".format(args.dataset))
 paths = glob.glob(args.dataset)
-dataset = icon_generator.dataset.PreprocessedImageDataset(paths=paths, cropsize=96, resize=(300, 300))
+dataset = icon_generator.dataset.PreprocessedImageDataset(paths=paths, cropsize=96, resize=(300, 300), scaling_ratio=args.scale)
 
 iterator = chainer.iterators.MultiprocessIterator(dataset, batch_size=args.batchsize, repeat=True, shuffle=True)
 # iterator = chainer.iterators.SerialIterator(dataset, batch_size=args.batchsize, repeat=True, shuffle=True)
 
-super_resolution_model = icon_generator.models.SRGenerator()
+super_resolution_model = icon_generator.models.SRGenerator(times=int(numpy.log2(args.scale)))
 if args.pretrained_srmodel is not None:
     chainer.serializers.load_npz(args.pretrained_srmodel, super_resolution_model)
-iconizer = icon_generator.models.Iconizer()
+if args.limited:
+    iconizer = icon_generator.models.IconizerLimited(times=int(numpy.log2(args.scale)))
+else:
+    iconizer = icon_generator.models.Iconizer(times=int(numpy.log2(args.scale)))
 if args.gpu >= 0:
     iconizer.to_gpu()
     super_resolution_model.to_gpu()
@@ -58,15 +63,23 @@ if args.train_sr:
 
 count_processed = 0
 sum_loss = 0
-for batch in iterator:
-    data = chainer.Variable(xp.array(batch))
+for zipped_batch in iterator:
+    low_res = chainer.Variable(xp.array([zipped[0] for zipped in zipped_batch]))
+    high_res = chainer.Variable(xp.array([zipped[1] for zipped in zipped_batch]))
 
-    iconized = iconizer(data)
+    iconized = iconizer(high_res)
     reconstructed = super_resolution_model(iconized)
 
+    # reconstruction loss
     loss = chainer.functions.mean_squared_error(
-        data,
+        high_res,
         reconstructed
+    )
+
+    # superresolution loss
+    loss += chainer.functions.mean_squared_error(
+        high_res,
+        super_resolution_model(low_res)
     )
 
     optimizer_iconizer.zero_grads()
@@ -77,8 +90,8 @@ for batch in iterator:
 
     sum_loss += chainer.cuda.to_cpu(loss.data)
     report_span = args.batchsize * 100
-    save_span = args.batchsize * 10000
-    count_processed += data.shape[0]
+    save_span = args.batchsize * 2000
+    count_processed += high_res.shape[0]
     if count_processed % report_span == 0:
         logging.info("processed: {}".format(count_processed))
         logging.info("loss: {}".format(sum_loss / report_span))

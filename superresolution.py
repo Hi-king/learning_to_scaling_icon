@@ -38,9 +38,8 @@ parser.add_argument("--outputpath")
 parser.add_argument("--resizedpath")
 parser.add_argument("--bicubicpath")
 args = parser.parse_args()
-exit(1)
-# generator = icon_generator.models.SRGenerator()
-generator = icon_generator.models.Iconizer()
+
+generator = icon_generator.models.SRGeneratorOld()
 chainer.serializers.load_npz(args.modelpath, generator)
 # chainer.serializers.load_hdf5(args.modelpath, generator)
 
