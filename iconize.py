@@ -37,9 +37,15 @@ parser.add_argument("--imagepath", required=True)
 parser.add_argument("--outputpath")
 parser.add_argument("--resizedpath")
 parser.add_argument("--bicubicpath")
+parser.add_argument("--scale", type=int, default=4)
+parser.add_argument("--limited", action="store_true")
 args = parser.parse_args()
-# generator = icon_generator.models.Iconizer(times=2)
-generator = icon_generator.models.IconizerOld()
+
+if args.limited:
+    generator = icon_generator.models.IconizerLimited(times=int(numpy.log2(args.scale)))
+else:
+    generator = icon_generator.models.Iconizer(times=int(numpy.log2(args.scale)))
+# generator = icon_generator.models.IconizerOld()
 chainer.serializers.load_npz(args.modelpath, generator)
 # chainer.serializers.load_hdf5(args.modelpath, generator)
 

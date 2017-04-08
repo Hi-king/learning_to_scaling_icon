@@ -16,7 +16,8 @@ parser.add_argument("--gpu", type=int, default=-1)
 parser.add_argument("--pretrained_srmodel")
 parser.add_argument("--batchsize", type=int, default=10)
 parser.add_argument("--train_sr", action="store_true")
-parser.add_argument('--scale', type=int, choices=[4, 8], default=4)
+parser.add_argument("--cropsize", type=int, default=96)
+parser.add_argument('--scale', type=int, choices=[2, 4, 8, 16, 32], default=4)
 parser.add_argument("--limited", action="store_true")
 args = parser.parse_args()
 
@@ -38,7 +39,7 @@ else:
 
 # paths = glob.glob("{}/*.JPEG".format(args.dataset))
 paths = glob.glob(args.dataset)
-dataset = icon_generator.dataset.PreprocessedImageDataset(paths=paths, cropsize=96, resize=(300, 300), scaling_ratio=args.scale)
+dataset = icon_generator.dataset.PreprocessedImageDataset(paths=paths, cropsize=args.cropsize, resize=(300, 300), scaling_ratio=args.scale)
 
 iterator = chainer.iterators.MultiprocessIterator(dataset, batch_size=args.batchsize, repeat=True, shuffle=True)
 # iterator = chainer.iterators.SerialIterator(dataset, batch_size=args.batchsize, repeat=True, shuffle=True)
@@ -77,10 +78,11 @@ for zipped_batch in iterator:
     )
 
     # superresolution loss
-    loss += chainer.functions.mean_squared_error(
-        high_res,
-        super_resolution_model(low_res)
-    )
+    if args.train_sr:
+        loss += chainer.functions.mean_squared_error(
+            high_res,
+            super_resolution_model(low_res)
+        )
 
     optimizer_iconizer.zero_grads()
     if optimizer_sr is not None: optimizer_sr.zero_grads()
@@ -99,3 +101,5 @@ for zipped_batch in iterator:
     if count_processed % save_span == 0:
         chainer.serializers.save_npz(
             os.path.join(OUTPUT_DIRECTORY, "iconizer_model_{}.npz".format(count_processed)), iconizer)
+        chainer.serializers.save_npz(
+            os.path.join(OUTPUT_DIRECTORY, "superresolution_model_{}.npz".format(count_processed)), super_resolution_model)

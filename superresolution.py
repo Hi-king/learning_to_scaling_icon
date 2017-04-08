@@ -37,9 +37,11 @@ parser.add_argument("--imagepath", required=True)
 parser.add_argument("--outputpath")
 parser.add_argument("--resizedpath")
 parser.add_argument("--bicubicpath")
+parser.add_argument("--scale", type=int, default=4)
 args = parser.parse_args()
 
-generator = icon_generator.models.SRGeneratorOld()
+# generator = icon_generator.models.SRGeneratorOld()
+generator = icon_generator.models.SRGenerator(times=int(numpy.log2(args.scale)))
 chainer.serializers.load_npz(args.modelpath, generator)
 # chainer.serializers.load_hdf5(args.modelpath, generator)
 

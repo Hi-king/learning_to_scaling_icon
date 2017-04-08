@@ -128,7 +128,7 @@ class IconizerLimited(Iconizer):
         super().__init__(times)
 
     def __call__(self, *args, **kwargs):
-        h = super(*args, **kwargs)
+        h = super().__call__(*args, **kwargs)
         h = chainer.functions.sigmoid(h)
         return h * 256
 
@@ -167,6 +167,7 @@ class SRGenerator(chainer.Chain):
             h = layer(h)
         h = self.conv_output(h)
         return h
+
 
 class SRGeneratorOld(chainer.Chain):
     def __init__(self):

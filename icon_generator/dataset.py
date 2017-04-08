@@ -41,7 +41,7 @@ class ResizedImageDataset(dataset_mixin.DatasetMixin):
     def get_example(self, i) -> numpy.ndarray:
         image = self.base[i]
         image_ary = numpy.asarray(image, dtype=self._dtype)
-        if len(image_ary.shape) == 2: # mono
+        if len(image_ary.shape) == 2:  # mono
             image_ary = numpy.dstack((image_ary, image_ary, image_ary))
         image_data = image_ary.transpose(2, 0, 1)
         if image_data.shape[0] == 4:  # RGBA
@@ -51,11 +51,11 @@ class ResizedImageDataset(dataset_mixin.DatasetMixin):
 
 class PreprocessedImageDataset(dataset_mixin.DatasetMixin):
     def __init__(self, paths, cropsize, scaling_ratio, resize=None, root='.', dtype=numpy.float32):
+        assert cropsize % scaling_ratio == 0, "{} must be multiple of {}".format(cropsize, scaling_ratio)
         self.base = ResizedImageDataset(paths=paths, resize=resize, root=root)
         self._dtype = dtype
         self.cropsize = cropsize
         self.scaling_ratio = scaling_ratio
-
 
     def __len__(self):
         return len(self.base)
