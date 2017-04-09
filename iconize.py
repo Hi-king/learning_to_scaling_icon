@@ -56,7 +56,8 @@ if img.shape[2] == 4:
 
 
 img_variable = img2variable(img)
-img_variable_sr = generator(img_variable, test=True)
+# img_variable_sr = generator(img_variable, test=True)
+img_variable_sr = generator(img_variable, test=False)
 img_sr = variable2img(img_variable_sr)
 
 resized = cv2.cvtColor(resize_copy(img), cv2.COLOR_RGB2BGR)

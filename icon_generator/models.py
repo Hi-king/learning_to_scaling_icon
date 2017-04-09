@@ -124,7 +124,7 @@ class Iconizer(chainer.Chain):
 
 
 class IconizerLimited(Iconizer):
-    def __init__(self, times):
+    def __init__(self, times: int):
         super().__init__(times)
 
     def __call__(self, *args, **kwargs):
