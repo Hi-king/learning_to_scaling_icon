@@ -52,7 +52,8 @@ if img.shape[2] == 4:
 
 
 img_variable = img2variable(img)
-img_variable_sr = generator(img_variable, test=True)
+# img_variable_sr = generator(img_variable, test=True)
+img_variable_sr = generator(img_variable, test=False)
 img_sr = variable2img(img_variable_sr)
 
 resized = cv2.cvtColor(resize_copy(img), cv2.COLOR_RGB2BGR)
@@ -63,7 +64,8 @@ if args.outputpath is None:
     cv2.imshow("test3", bicubic)
     cv2.waitKey(-1)
 else:
-    cv2.imwrite(args.outputpath, cv2.cvtColor(img_sr, cv2.COLOR_RGB2BGR))
+    cv2.imwrite("test.png", variable2img(img_variable)[:,:,::-1])
+    cv2.imwrite(args.outputpath, img_sr[:,:,::-1])
     if args.resizedpath is not None:
         cv2.imwrite(args.resizedpath, resized)
     if args.bicubicpath is not None:
